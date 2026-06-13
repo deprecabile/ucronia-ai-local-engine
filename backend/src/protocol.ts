@@ -28,6 +28,13 @@ export type ClientMessage =
 // Server -> Client
 export type ServerMessage =
   | { type: "ready" }
+  // Storico persistente di un canale, inviato alla connessione per ripopolare la UI
+  // dopo un reload/riavvio (oggi solo "turn": transcript giocatore↔Gazzetta).
+  | {
+      type: "history";
+      channel: Channel;
+      messages: { id: string; role: "user" | "assistant"; text: string }[];
+    }
   | { type: "assistant_delta"; channel: Channel; id: string; text: string }
   | { type: "assistant_done"; channel: Channel; id: string }
   | { type: "turn_progress"; id: string; label: string } // solo canale "turn"

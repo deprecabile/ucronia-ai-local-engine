@@ -8,7 +8,7 @@ import { WebSocketServer, WebSocket, type RawData } from "ws";
 import type { ClientMessage, ServerMessage } from "./protocol.js";
 import { streamAgent } from "./game/agent.js";
 import { prompts } from "./game/prompts.js";
-import { loadState, loadUltimoTurno, currentDate } from "./game/state.js";
+import { loadState, loadUltimoTurno, loadChatHistory, currentDate } from "./game/state.js";
 import { runTurn } from "./game/turn.js";
 
 const PORT = Number(process.env.PORT ?? 8088);
@@ -42,6 +42,18 @@ wss.on("connection", (ws: WebSocket) => {
   };
 
   send({ type: "ready" });
+
+  // Ripopola la chat del canale "turn" con lo storico persistente (giocatore↔Gazzetta)
+  // dopo un reload/riavvio. Read-only e indipendente dal lock busy → fire-and-forget.
+  void (async () => {
+    const history = await loadChatHistory();
+    if (history.length)
+      send({
+        type: "history",
+        channel: "turn",
+        messages: history.map((m, i) => ({ id: `h${i}-${m.role}`, ...m })),
+      });
+  })();
 
   ws.on("pong", () => {
     isAlive = true;

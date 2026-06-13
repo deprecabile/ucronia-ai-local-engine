@@ -30,6 +30,7 @@ const FILES = {
   attori: "attori.md",
   cronologia: "cronologia.md",
   ultimoTurno: "_ultimo_turno.md",
+  chatHistory: "chat_history.json",
 } as const;
 
 export async function loadState(dir: string = GAME_DIR): Promise<GameState> {
@@ -109,6 +110,42 @@ export async function loadUltimoTurno(dir: string = GAME_DIR): Promise<string> {
     return await readFile(path.join(dir, FILES.ultimoTurno), "utf8");
   } catch {
     return "(Nessun turno giocato finora: è l'inizio della partita.)";
+  }
+}
+
+// Storico chat (canale "turn"): transcript giocatore↔Gazzetta. NON viene mai dato
+// agli agenti (non entra in loadState né in alcun prompt): serve solo a ripopolare la
+// UI alla riapertura del sito. Un solo append per turno, a streaming concluso.
+// Formato JSON: array piatto di messaggi alternati [user, assistant, …] — la stessa
+// forma che consuma il frontend (il server aggiunge solo l'id), niente parsing fragile.
+export interface ChatHistoryMessage {
+  role: "user" | "assistant";
+  text: string;
+}
+
+export async function appendChatHistory(
+  playerText: string,
+  gazette: string,
+  dir: string = GAME_DIR
+): Promise<void> {
+  const history = await loadChatHistory(dir);
+  history.push({ role: "user", text: playerText.trim() });
+  history.push({ role: "assistant", text: gazette.trim() });
+  // Atomica: un JSON scritto a metà sarebbe illeggibile (a differenza di un .md).
+  await writeAtomic(path.join(dir, FILES.chatHistory), JSON.stringify(history, null, 2) + "\n");
+}
+
+// Rilegge lo storico (array piatto di messaggi). File assente o JSON corrotto ⇒ [].
+export async function loadChatHistory(
+  dir: string = GAME_DIR
+): Promise<ChatHistoryMessage[]> {
+  try {
+    const parsed: unknown = JSON.parse(
+      await readFile(path.join(dir, FILES.chatHistory), "utf8")
+    );
+    return Array.isArray(parsed) ? (parsed as ChatHistoryMessage[]) : [];
+  } catch {
+    return [];
   }
 }
 

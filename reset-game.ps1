@@ -18,6 +18,7 @@ $RepoRoot = $PSScriptRoot
 $Zip      = Join-Path $RepoRoot 'game_initial_status.zip'
 $GameDir  = Join-Path $RepoRoot 'game'
 $Recap    = Join-Path $GameDir  '_ultimo_turno.md'
+$ChatHistory = Join-Path $GameDir 'chat_history.json'
 
 # Nomi dei file COSÌ COME COMPAIONO NELL'ARCHIVIO (alla radice dello zip, senza prefisso game/).
 $GameFiles = @('movimento.md', 'nazione.md', 'attori.md', 'cronologia.md')
@@ -47,7 +48,7 @@ try {
     if (-not $Force) {
         Write-Host "Sto per RIPRISTINARE la partita al turno 0 (stato iniziale) da '$Zip'."
         Write-Host "Verranno sovrascritti in game\: $($GameFiles -join ', ')"
-        Write-Host "e cancellato il recap: $Recap"
+        Write-Host "e cancellati il recap ($Recap) e lo storico chat ($ChatHistory)"
         $ans = Read-Host 'Procedo? [y/N]'
         if ($ans -ne 'y' -and $ans -ne 'Y') {
             Write-Host 'Annullato.'
@@ -72,6 +73,12 @@ finally {
 # Rimuove il recap derivato (è in .gitignore: il backend lo rigenera a fine turno).
 if (Test-Path -LiteralPath $Recap) {
     Remove-Item -LiteralPath $Recap -Force
+}
+
+# Svuota lo storico chat: nuova partita = transcript vuoto (il backend lo ricrea
+# al primo turno con append).
+if (Test-Path -LiteralPath $ChatHistory) {
+    Remove-Item -LiteralPath $ChatHistory -Force
 }
 
 Write-Host "OK Partita riportata al turno 0 (stato iniziale)." -ForegroundColor Green

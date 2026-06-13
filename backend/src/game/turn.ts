@@ -27,6 +27,7 @@ import {
 } from "./schemas.js";
 import { findActorCard } from "./actors.js";
 import {
+  appendChatHistory,
   appendCronologia,
   currentDate,
   loadUltimoTurno,
@@ -201,12 +202,16 @@ export async function* runTurn(
     integ.esitoIntegrato,
   ].join("\n");
 
+  // Accumula la Gazzetta intera mentre la streammiamo: serve per l'append a fine
+  // turno in chat_history.json (un solo append, a streaming concluso).
+  let gazzetta = "";
   for await (const delta of streamAgent({
     system: prompts.giornalista,
     prompt: giornalistaPrompt,
     allowTools: true,
     abortController,
   })) {
+    gazzetta += delta;
     yield delta;
   }
 
@@ -290,6 +295,13 @@ export async function* runTurn(
   // ---- Recap _ultimo_turno.md (da codice, zero token) -----------------------
   if (integ.cronologia) {
     await writeUltimoTurno(integ.cronologia, esitoIntegrato, integ.dataCorrente || data);
+  }
+
+  // ---- Storico chat (transcript giocatore↔Gazzetta, NON dato agli agenti) ----
+  // A fine pipeline: se la connessione fosse caduta prima (abort → throw), il turno
+  // è scartato e non viene registrato, coerentemente con cronologia/_ultimo_turno.
+  if (gazzetta.trim()) {
+    await appendChatHistory(messaggio, gazzetta);
   }
 
   return { data: integ, snapshotsWritten };

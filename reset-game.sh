@@ -20,6 +20,7 @@ GAME_DIR=game
 # prefisso game/). Vengono estratti dentro GAME_DIR/.
 GAME_FILES=(movimento.md nazione.md attori.md cronologia.md)
 RECAP=game/_ultimo_turno.md
+CHAT=game/chat_history.json
 
 # Verifica che l'archivio sorgente esista.
 if [[ ! -f "$ZIP" ]]; then
@@ -49,7 +50,7 @@ done
 if [[ "${1:-}" != "--force" ]]; then
   echo "Sto per RIPRISTINARE la partita al turno 0 (stato iniziale) da '$ZIP'."
   echo "Verranno sovrascritti in $GAME_DIR/: ${GAME_FILES[*]}"
-  echo "e cancellato il recap: $RECAP"
+  echo "e cancellati il recap ($RECAP) e lo storico chat ($CHAT)"
   read -r -p "Procedo? [y/N] " ans
   [[ "$ans" == "y" || "$ans" == "Y" ]] || { echo "Annullato."; exit 0; }
 fi
@@ -63,5 +64,9 @@ unzip -o -j "$ZIP" "${GAME_FILES[@]}" -d "$GAME_DIR" >/dev/null
 
 # Rimuove il recap derivato (è in .gitignore: il backend lo rigenera a fine turno).
 rm -f "$RECAP"
+
+# Svuota lo storico chat: nuova partita = transcript vuoto (il backend lo ricrea
+# al primo turno con append).
+rm -f "$CHAT"
 
 echo "✅ Partita riportata al turno 0 (stato iniziale)."

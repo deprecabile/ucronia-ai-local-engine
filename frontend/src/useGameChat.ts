@@ -112,6 +112,13 @@ export function useGameChat() {
           case "ready":
             setConnected(true);
             break;
+          case "history":
+            // Ripopola il canale SOLO se ancora vuoto: a una riconnessione il server
+            // re-invia lo storico, e non vogliamo sovrascrivere una sessione in corso.
+            setters[msg.channel]((s) =>
+              s.messages.length ? s : { ...s, messages: msg.messages }
+            );
+            break;
           case "pong":
             break; // l'effetto utile (rearm del watchdog) è già avvenuto sopra
           case "assistant_delta":
