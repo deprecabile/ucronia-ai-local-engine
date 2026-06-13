@@ -5,7 +5,7 @@
 //   Storico      Fase 2.5 (eventi di sfondo, corretti per l'Effetto Farfalla)               [strutturato]
 //   Integratore  Fase 2.6 (fonde le 3 fonti in UNA timeline datata: il "calderone")         [strutturato]
 //   Giornalista  Fase 3   (Gazzetta in streaming a partire dalla timeline)                  [streaming]
-//   Snapshotter  Fasi 4-5 (riscrive movimento/nazione/attori.md)                            [blocchi delimitati]
+//   Snapshotter  Fasi 4-5 (riscrive movimento/nazione/attori.md)            [3 agenti paralleli, testo grezzo]
 //   Cronologia   Fase 6   (append puro, zero token)                                         [solo codice]
 //
 // Memoria del passato: ogni agente riceve sempre il recap _ultimo_turno.md e può
@@ -210,41 +210,74 @@ export async function* runTurn(
     yield delta;
   }
 
-  // ---- Fasi 4-5 — Snapshotter (dietro le quinte, output a blocchi delimitati) ----
+  // ---- Fasi 4-5 — Snapshotter (3 agenti paralleli, uno per file, testo grezzo) ----
+  // Come gli Attori, gira in Promise.all: ogni agente riscrive UN solo file e la
+  // risposta È già il file. Niente più marcatori testuali da ritagliare.
+  // La coerenza incrociata (relazioni giocatore↔attore presenti sia in movimento.md
+  // sia nelle schede di attori.md) è affidata all'esitoIntegrato, fonte condivisa.
   onProgress("Aggiorno lo stato di gioco…");
   let snapshotsWritten = false;
   const esitoIntegrato = integ.esitoIntegrato;
 
   // Le "scoperte" che l'Integratore assegna a ciascun attore sono l'evoluzione del
   // suo ORIZZONTE DI CONOSCENZA: vanno fatte sedimentare nel campo "cosa sa di lui"
-  // della sua scheda, così al prossimo turno l'agente-Attore le ritrova.
+  // della sua scheda, così al prossimo turno l'agente-Attore le ritrova. Riguardano
+  // solo attori.md, quindi il blocco va dato esclusivamente a quell'agente.
   const scoperte = integ.scoperteProssimoTurno ?? [];
   const scoperteBlock = scoperte.length
     ? scoperte.map((s) => `- ${s.attore}: ${s.cosaScopre}`).join("\n")
     : "(nessuna scoperta segnalata per questo turno)";
 
-  const snap = await runAgent<unknown>({
-    system: prompts.snapshot,
-    allowTools: true,
-    abortController,
-    prompt: [
-      `ESITO INTEGRATO DEL TURNO (dall'Integratore):`,
-      esitoIntegrato,
-      ``,
-      `=== COSA CIASCUN ATTORE SCOPRE A FINE TURNO (aggiorna gli orizzonti di conoscenza) ===`,
-      scoperteBlock,
-      ``,
-      `=== movimento.md (attuale) ===\n${state.movimento}`,
-      `=== nazione.md (attuale) ===\n${state.nazione}`,
-      `=== attori.md (attuale) ===\n${state.attori}`,
-    ].join("\n"),
-  });
-  const snapshots = parseSnapshotBlocks(snap.text);
-  if (snapshots) {
-    await writeSnapshots(snapshots);
+  const snapTargets = [
+    { key: "movimento", file: "movimento.md", attuale: state.movimento, extra: "" },
+    { key: "nazione", file: "nazione.md", attuale: state.nazione, extra: "" },
+    {
+      key: "attori",
+      file: "attori.md",
+      attuale: state.attori,
+      extra: [
+        ``,
+        `=== COSA CIASCUN ATTORE SCOPRE A FINE TURNO (aggiorna gli orizzonti di conoscenza) ===`,
+        scoperteBlock,
+      ].join("\n"),
+    },
+  ] as const;
+
+  const snapResults = await Promise.all(
+    snapTargets.map(async (t): Promise<string | null> => {
+      try {
+        const res = await runAgent({
+          system: prompts.snapshot,
+          allowTools: true,
+          abortController,
+          prompt: [
+            `FILE DA RISCRIVERE: ${t.file} — produci SOLO questo file, per intero.`,
+            ``,
+            `ESITO INTEGRATO DEL TURNO (dall'Integratore):`,
+            esitoIntegrato,
+            t.extra,
+            ``,
+            `=== ${t.file} (attuale) ===\n${t.attuale}`,
+          ].join("\n"),
+        });
+        return cleanSnapshotFile(res.text);
+      } catch (err) {
+        // Un abort (connessione caduta) deve fermare il turno: rilancia.
+        if (abortController?.signal.aborted) throw err;
+        console.error(`[turn] Snapshotter "${t.file}" fallito:`, err);
+        return null;
+      }
+    })
+  );
+
+  const [movimentoMd, nazioneMd, attoriMd] = snapResults;
+  if (movimentoMd && nazioneMd && attoriMd) {
+    await writeSnapshots({ movimento: movimentoMd, nazione: nazioneMd, attori: attoriMd });
     snapshotsWritten = true;
   } else {
-    console.error("[turn] Snapshotter: blocchi ===FILE:...=== non riconosciuti, snapshot non scritti");
+    console.error(
+      "[turn] Snapshotter: uno o più file non prodotti, snapshot non scritti (nessuna scrittura parziale)"
+    );
   }
 
   // ---- Fase 6 — Cronologia (append puro, zero token) ------------------------
@@ -262,21 +295,13 @@ export async function* runTurn(
   return { data: integ, snapshotsWritten };
 }
 
-// Ritaglia i tre file dai blocchi "===FILE:nome===" prodotti dallo Snapshotter.
-function parseSnapshotBlocks(
-  text: string
-): { movimento: string; nazione: string; attori: string } | null {
-  const grab = (name: string): string | null => {
-    // dal marcatore del file fino al marcatore successivo o a fine testo
-    const re = new RegExp(
-      `===FILE:${name.replace(".", "\\.")}===\\s*\\n([\\s\\S]*?)(?=\\n===FILE:|$)`
-    );
-    const m = text.match(re);
-    return m?.[1]?.trim() ?? null;
-  };
-  const movimento = grab("movimento.md");
-  const nazione = grab("nazione.md");
-  const attori = grab("attori.md");
-  if (!movimento || !nazione || !attori) return null;
-  return { movimento, nazione, attori };
+// Normalizza l'output grezzo di un agente-Snapshotter: il corpo della risposta È
+// già il file. Difesa minima contro un eventuale code fence di contorno (```… ```,
+// anche ```markdown) o spazi in eccesso. Ritorna null se vuoto (→ niente scrittura).
+function cleanSnapshotFile(text: string): string | null {
+  let s = text.trim();
+  const fence = s.match(/^```[a-zA-Z]*\n([\s\S]*?)\n```$/);
+  const inner = fence?.[1];
+  if (inner != null) s = inner.trim();
+  return s || null;
 }

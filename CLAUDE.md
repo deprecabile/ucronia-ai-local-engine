@@ -77,7 +77,7 @@ Smistati su `msg.channel` (vedi `backend/src/protocol.ts`, copiato in `frontend/
 | 2.5 (eventi di sfondo, corretti per l'Effetto Farfalla) | **Storico** | `storico.md` | strutturato (`storicoSchema`) |
 | 2.6 (fonde le 3 fonti in **una timeline datata**) | **Integratore** | `integratore.md` | strutturato (`integratoreSchema`) |
 | 3 (Gazzetta dalla timeline) | **Giornalista** | `giornalista.md` | **streaming** (nessuno schema) |
-| 4-5 (riscrive movimento/nazione/attori) | **Snapshotter** | `snapshot.md` | blocchi `===FILE:nome===` |
+| 4-5 (riscrive movimento/nazione/attori) | **Snapshotter** ×3 (in parallelo, 1 per file) | `snapshot.md` | **testo grezzo** (la risposta è il file) |
 | 6 (append cronologia) | — | — | **solo codice**, zero token |
 
 Le tre **fonti del calderone**: (a) azioni del giocatore valutate dall'Arbitro; (b) mosse degli attori simulati; (c) eventi storici di sfondo delle forze NON simulate. L'Integratore le fonde in `timeline[{data,testo,fonte}]` + `esitoIntegrato` + `scoperteProssimoTurno` + `cronologia`.
@@ -86,8 +86,8 @@ Dettagli che richiedono di leggere più file:
 - **Spalmatura nel tempo (Pax-Historia-like)**: l'Arbitro non risolve le azioni "il primo giorno" — assegna a ciascuna una `collocazione` nell'arco (`finestra.arco`, condiviso da Storico e Integratore). Così un'azione di inizio finestra può **condizionare**, nello stesso turno, ciò che accade dopo.
 - **Storico sequenziale + Effetto Farfalla**: gira **dopo** Arbitro e Attori e ne riceve azioni+mosse, così corregge gli eventi storici reali (li **sopprime / anticipa / ritarda**) in base a cosa è successo nella partita — divergenze accumulate (via `cerca_cronologia`) e divergenze di questa finestra.
 - **Contesto ristretto degli Attori**: ogni agente-Attore riceve **solo la propria scheda**, ritagliata da `attori.md` con `findActorCard`/`parseActorCards` (`game/actors.ts`), che divide il file sugli header `### `. Decide in isolamento col suo orizzonte di conoscenza; l'Integratore fa convergere tutto.
-- **Niente più estrazione regex dei dati di turno**: l'Integratore produce **output strutturato** (`integratoreSchema`), quindi il Giornalista streamma la Gazzetta **grezza** (nessun blocco da nascondere). Lo Snapshotter invece resta a blocchi delimitati `===FILE:nome===`, ritagliati con `parseSnapshotBlocks`.
-- **Le "scoperte" assegnate dall'Integratore** a ciascun attore vengono passate allo Snapshotter, che le sedimenta nel campo "cosa sa di lui" della scheda → l'agente-Attore le ritrova al turno dopo.
+- **Niente più estrazione regex/marcatori dei dati di turno**: l'Integratore produce **output strutturato** (`integratoreSchema`), quindi il Giornalista streamma la Gazzetta **grezza** (nessun blocco da nascondere). Lo Snapshotter gira come **3 agenti in parallelo** (`Promise.all`, uno per `movimento`/`nazione`/`attori`): ogni agente riscrive **un solo file** e la **risposta è già il file** (testo grezzo, niente schema né marcatori). Il backend applica solo una normalizzazione difensiva minima (`cleanSnapshotFile` in `turn.ts`: strip di un eventuale code fence di contorno). `attori.md` resta **un solo** agente (la regola dell'assorbimento richiede la visione d'insieme di tutti gli attori).
+- **Le "scoperte" assegnate dall'Integratore** a ciascun attore vengono passate **all'agente-Snapshotter di `attori.md`** (solo a quello), che le sedimenta nel campo "cosa sa di lui" della scheda → l'agente-Attore le ritrova al turno dopo.
 
 ### Proprietà dello stato (`backend/src/game/state.ts`)
 Il **backend è l'unico** a scrivere su `game/`; **gli agenti non toccano mai i file** — restituiscono testo/dati e l'I/O lo fa il codice (la chat non vede mai le scritture).
@@ -108,7 +108,7 @@ Caricati a runtime da `prompt/*.md` (`PROMPT_DIR`), editabili **senza ricompilar
 ## Convenzioni e accortezze
 
 - **Il protocollo WS è duplicato per copia**: modificando `backend/src/protocol.ts` aggiorna anche `frontend/src/protocol.ts` (e viceversa).
-- **Output dello Snapshotter via marcatori testuali** (`===FILE:nome===`): se cambi questo formato in `snapshot.md`, aggiorna il parser `parseSnapshotBlocks` in `turn.ts`. (Le altre fasi usano output strutturato via schema: nessun marcatore testuale da mantenere.)
+- **Snapshotter: 1 agente per file, la risposta È il file** (testo grezzo, nessuno schema, nessun marcatore). I 3 agenti girano in `Promise.all` e si scrivono **solo se tutti e tre** producono contenuto (niente scritture parziali; `writeSnapshots` è atomico). La coerenza incrociata (es. relazione giocatore↔attore in `movimento.md` e nelle schede di `attori.md`) è affidata all'`esitoIntegrato` condiviso. Se cambi questo formato in `snapshot.md`, aggiorna `cleanSnapshotFile` in `turn.ts`. (Gli agenti-dati a monte usano invece output strutturato via schema.)
 - **Ambientazione tutta in `scenario.md`**: non reintrodurre riferimenti all'Italia/1919 nei prompt degli agenti né in `common.md`; restano scenario-agnostici. Lo stato in `game/*.md` è invece contenuto dello scenario (Italia), con schema generico (es. campo `**Relazione con la fazione del giocatore:**`).
 - **`_ultimo_turno.md` è derivato** (in `.gitignore`): lo stato vero sono gli altri 4 file di `game/`. Non trattarlo come fonte di verità.
 - Le `.md` di `prompt/` e `game/` sono **dati di gioco**, non documentazione: trattale come tali quando modifichi il comportamento.

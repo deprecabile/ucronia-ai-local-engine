@@ -194,4 +194,5 @@ export interface IntegratoreOutput {
   };
 }
 
-// (Lo Snapshotter NON usa schema: produce blocchi ===FILE:...=== ritagliati dal backend.)
+// (Lo Snapshotter NON usa schema: gira come 3 agenti paralleli, uno per file,
+//  e ciascuno restituisce il file come testo grezzo — vedi turn.ts.)

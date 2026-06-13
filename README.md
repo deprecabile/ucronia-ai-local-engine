@@ -45,7 +45,7 @@ simulati ed eventi storici di sfondo — confluiscono in **una timeline datata d
 | 2.5 (eventi di sfondo, corretti per l'Effetto Farfalla) | **Storico** | `storico.md` | strutturato (JSON) |
 | 2.6 (fonde le 3 fonti in una timeline datata) | **Integratore** | `integratore.md` | strutturato (JSON) |
 | 3 (Gazzetta dalla timeline) | **Giornalista** | `giornalista.md` | **streaming** |
-| 4-5 (riscrive movimento/nazione/attori.md) | **Snapshotter** | `snapshot.md` | blocchi `===FILE:…===` |
+| 4-5 (riscrive movimento/nazione/attori.md) | **Snapshotter** ×3 (in parallelo, 1 per file) | `snapshot.md` | testo grezzo (la risposta è il file) |
 | 6 (append cronologia) | — | — | **solo codice**, zero token |
 
 Tre idee chiave: **(1)** le azioni del giocatore si **spalmano nel tempo** (l'Arbitro dà a ciascuna
