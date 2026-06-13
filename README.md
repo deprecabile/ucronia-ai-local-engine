@@ -1,16 +1,16 @@
-# Fantapolitica Italia '20 — web app
+# Game Master AI per giochi di ruolo storico-politici — web app
 
 Gioco di ruolo narrativo, strategico e gestionale di **fantapolitica storica**: il giocatore guida
-un nuovo movimento politico italiano nel primo dopoguerra (febbraio 1919). Claude fa da **Game
-Master** attraverso una pipeline di agenti specializzati. Versione web di un gioco prima giocato
-"a mano" dentro Claude Code; le regole stabili stanno nei **prompt**, lo stato della partita nei
-file **`game/*.md`**.
+una nuova forza politica e Claude fa da **Game Master** attraverso una pipeline di agenti
+specializzati. Versione web di un gioco prima giocato "a mano" dentro Claude Code; le regole stabili
+stanno nei **prompt**, lo stato della partita nei file **`game/*.md`**.
 
-Il **motore è generico**: tutta l'ambientazione (mondo, epoca, attori, cos'è il potere) vive in un
-unico file, **`prompt/scenario.md`**. I prompt degli agenti e la meccanica (`common.md`) sono
-scenario-agnostici, così per riambientare il gioco — un altro Paese, un'altra epoca — basta
-riscrivere `scenario.md` + lo stato iniziale in `game/`, senza toccare gli agenti. Lo scenario
-attuale è l'Italia del primo dopoguerra.
+Il **motore è generico e l'ambientazione la decidi tu**: mondo, epoca, attori, cos'è il potere e
+come circola l'informazione vivono in un unico file, **`prompt/scenario.md`**. I prompt degli agenti
+e la meccanica (`common.md`) sono scenario-agnostici, così puoi ambientare il gioco dove e quando
+vuoi — un altro Paese, un'altra epoca, perfino un mondo immaginario — riscrivendo solo `scenario.md`
++ lo stato iniziale in `game/`, senza toccare gli agenti. Lo scenario incluso nel repo è soltanto
+**uno scenario d'esempio**: sostituiscilo con quello che preferisci.
 
 ```
 React + TS (Vite)  ──WebSocket──►  Node backend (TS)  ──Agent SDK──►  claude CLI
@@ -26,7 +26,7 @@ Una sola connessione WebSocket, due chat affiancate (campo `channel` del messagg
   se…»), pianificazione, chiarimenti storici. Non fa avanzare il gioco, non scrive su `game/`.
   Mantiene il contesto tra messaggi via `resume` della sessione SDK.
 - **⏭️ Avanza il turno (`turn`)** — scrivi **durata + ordini** (es. *«avanziamo di 2 settimane:
-  comizio a Palermo»*). Qui il tempo passa: parte la pipeline multi-agente, viene streammata la
+  comizio nella capitale»*). Qui il tempo passa: parte la pipeline multi-agente, viene streammata la
   Gazzetta del turno e si aggiorna lo stato in `game/`.
 
 Un lock `busy` per connessione serializza i due canali: condividono `game/`, un turno alla volta.
@@ -92,9 +92,12 @@ cd backend && npm install
 cd ../frontend && npm install
 ```
 
-Tutto insieme (backend + frontend, log prefissati, Ctrl+C ferma entrambi — richiede bash/WSL):
+Tutto insieme (backend + frontend, log prefissati, Ctrl+C ferma entrambi):
 ```bash
-./start.sh
+./start.sh        # bash / WSL / Git Bash
+```
+```powershell
+.\start.ps1       # Windows PowerShell
 ```
 
 Oppure separatamente — backend (porta 8088):
@@ -131,9 +134,10 @@ cd backend && npm run sanity             # vedi anche sanity-structured / sanity
 
 - Il backend va avviato da una shell in cui la CLI `claude` è **sul PATH e già autenticata** (provala
   con `claude -p "ciao"`): l'Agent SDK la trova ed eredita la sua auth (vedi **Autenticazione**).
-- Funziona sia su **Windows nativo** (Node per Windows, `claude.exe`) sia su **WSL/Linux**. Gli
-  script `*.sh` (`start.sh`, `reset-game.sh`, `export-zip.sh`) richiedono però **bash** — su Windows
-  usa Git Bash o WSL. In alternativa, avvia i due `npm run dev` a mano (vedi sopra).
+- Funziona sia su **Windows nativo** (Node per Windows, `claude.exe`) sia su **WSL/Linux**. `start` e
+  `reset-game` hanno **entrambe le versioni**: `*.sh` per bash/WSL/Git Bash e `*.ps1` per Windows
+  PowerShell. Solo `export-zip.sh` richiede **bash** (su Windows usa Git Bash o WSL); in alternativa
+  avvia i due `npm run dev` a mano (vedi sopra).
 - Se in WSL `claude` è disponibile solo dopo `source ~/.bashrc`, avvia da una shell già inizializzata
   dal profilo (`start.sh` fa il source di `~/.bashrc` se serve).
 - Gli agenti possono usare **solo** il tool read-only `cerca_cronologia`: non scrivono mai sui file
