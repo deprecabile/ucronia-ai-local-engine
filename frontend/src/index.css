@@ -1,0 +1,104 @@
+/* Scrollbar stilizzata per le liste chat (tema scuro) */
+.chat-list {
+  scrollbar-width: thin;
+  scrollbar-color: #30363d transparent;
+}
+.chat-list::-webkit-scrollbar {
+  width: 10px;
+}
+.chat-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-list::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 6px;
+  border: 2px solid #0d1117; /* effetto "inset" */
+}
+.chat-list::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
+
+/* Markdown renderizzato dentro le bolle */
+.bubble-md > :first-child {
+  margin-top: 0;
+}
+.bubble-md > :last-child {
+  margin-bottom: 0;
+}
+.bubble-md p {
+  margin: 0 0 8px;
+}
+.bubble-md h1,
+.bubble-md h2,
+.bubble-md h3,
+.bubble-md h4 {
+  margin: 8px 0 4px;
+  line-height: 1.3;
+}
+.bubble-md ul,
+.bubble-md ol {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+.bubble-md li {
+  margin: 2px 0;
+}
+.bubble-md blockquote {
+  margin: 4px 0;
+  padding-left: 10px;
+  border-left: 3px solid #30363d;
+  color: #8b949e;
+}
+.bubble-md code {
+  background: rgba(110, 118, 129, 0.4);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.bubble-md pre {
+  background: #0d1117;
+  padding: 10px;
+  border-radius: 6px;
+  /* Va a capo invece di scrollare orizzontalmente: preserva i ritorni a capo
+     voluti (la "gazzetta" a riquadro) ma manda a capo le righe troppo lunghe.
+     overflow-wrap:anywhere spezza anche le sequenze senza spazi (es. ═══). */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  margin: 6px 0;
+}
+.bubble-md pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.85em;
+}
+.bubble-md a {
+  color: #58a6ff;
+}
+.bubble-md table {
+  border-collapse: collapse;
+  margin: 6px 0;
+}
+.bubble-md th,
+.bubble-md td {
+  border: 1px solid #30363d;
+  padding: 4px 8px;
+}
+.bubble-md img {
+  max-width: 100%;
+}
+
+/* Sulla bolla utente (sfondo blu) rendi link e bordi tabella più leggibili */
+.bubble-user .bubble-md a {
+  color: #cce3ff;
+  text-decoration: underline;
+}
+.bubble-user .bubble-md blockquote {
+  border-left-color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.85);
+}
+.bubble-user .bubble-md th,
+.bubble-user .bubble-md td {
+  border-color: rgba(255, 255, 255, 0.4);
+}

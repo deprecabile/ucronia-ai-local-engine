@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Claude Code local settings (machine-specific)
+.claude/settings.local.json
+
+# Recap derivato, rigenerato a ogni turno (lo stato vero è negli altri file game/)
+game/_ultimo_turno.md
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
